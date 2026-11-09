@@ -1,0 +1,7 @@
+data/
+*.sqlite*
+*.csv
+.env
+.env.*
+.ample-source/
+.ample/

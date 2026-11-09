@@ -1,0 +1,108 @@
+# notyetbutsoon (nybs)
+
+> A tiny, write-only API for collecting interest in a launch. Submit a project
+> name and email; the service saves them with the client IP and UTC signup time.
+
+## Address and endpoints
+
+Use the origin that served this document as your base URL.
+
+- POST /signup: collect an email for a project.
+- GET /healthz: check availability; returns {"ok":true}.
+- GET /llm.txt: these instructions as UTF-8 plain text.
+- GET /llms.txt: an alias for the same instructions.
+- HEAD and OPTIONS also work on both documentation paths.
+
+There is no public endpoint to list projects, read signups, or export emails.
+
+## Submit an email
+
+No API key, cookie, account, or project registration is required. Choose a stable
+project label and use it consistently. Only submit an address when the person
+has asked to join that project's list. Examples are not requests to create
+production signups.
+
+```sh
+curl --fail-with-body https://YOUR_HOSTNAME/signup \
+  -H 'Content-Type: application/json' \
+  -d '{"project":"my-launch","email":"person@example.com"}'
+```
+
+Required fields:
+
+- project: string, 1–120 characters after trimming, without control characters.
+  Names are Unicode-normalized (NFC) and case-sensitive.
+- email: syntactically valid email string, at most 254 characters. Addresses are
+  trimmed and lowercased. Internationalized email addresses are not supported.
+
+The entire body must fit in 4096 bytes. application/x-www-form-urlencoded is
+also accepted, with exactly one project and one email field. multipart/form-data
+is not supported. The server assigns IP addresses and timestamps; do not provide
+forwarding headers or try to supply an IP field.
+
+## Success and duplicates
+
+HTTP 200, Content-Type: application/json:
+
+{"ok":true}
+
+Success means the signup committed to the database, or the same normalized email
+already exists in that project. Both cases return the same response. Duplicates
+retain the original IP and signup time. An email can join different projects.
+Do not infer a signup count or new membership from the response.
+
+## Errors and retries
+
+Errors return JSON with an error string. Use the HTTP status for decisions;
+error text is for display and may change.
+
+- 400: invalid/missing fields or malformed JSON. Correct the input.
+- 413: body exceeds 4096 bytes. Reduce it.
+- 415: unsupported Content-Type. Use JSON or URL-encoded form fields.
+- 429: IP quota exceeded. Wait for the Retry-After header's number of seconds.
+  Do not change project labels or forge headers to evade the quota.
+- 503: temporary failure. Retry a small number of times with increasing delays.
+  Repeating the same project/email pair is safe because it is deduplicated.
+- 405: unsupported method. GET /signup does not retrieve data.
+- 404: unknown path.
+
+If a proxy returns a non-JSON error, show a temporary-failure message. Do not
+treat it as success or retry indefinitely.
+
+## Rate limits
+
+The maintained instance allows 10 POST /signup attempts per IP in a 600-second
+window beginning with the first attempt. The quota covers all projects. Invalid
+and duplicate attempts count. IPv6 privacy addresses in one /64 share a quota.
+A self-hosted operator can configure different limits.
+
+Retry-After is measured in seconds and is readable by browser clients. Health
+checks, documentation, and OPTIONS preflights do not consume signup quota.
+
+## Browser integration
+
+CORS accepts any origin. Send JSON with Content-Type: application/json; the
+service handles OPTIONS preflights. Do not send credentials.
+
+```js
+const response = await fetch('https://YOUR_HOSTNAME/signup', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ project: 'my-launch', email: enteredEmail }),
+});
+const result = await response.json();
+if (!response.ok) throw new Error(result.error || 'Please try again.');
+// Show a confirmation only after HTTP 200.
+```
+
+## Data and ownership
+
+The operator stores project, normalized email, full client IP, and UTC signup
+time in SQLite. Labels are not authenticated ownership boundaries: anyone can
+submit to any project. Syntax validation does not verify mailbox ownership.
+The service does not send confirmation or marketing emails. Collected data is
+accessible only to the operator through server-side tools.
+
+For deployment, exports, backups, and proxy configuration, consult the source
+repository's README. Database files and operator credentials are not public
+HTTP resources.

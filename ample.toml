@@ -1,0 +1,22 @@
+version = 1
+project = "notyetbutsoon"
+
+[services.notyetbutsoon]
+path = "."
+runtime = "node"
+template = "node-24"
+start = "node server.js"
+health_path = "/healthz"
+public = true
+
+[services.notyetbutsoon.env]
+HOST = "0.0.0.0"
+DB_PATH = "/data/signups.sqlite"
+
+[services.notyetbutsoon.sqlite_paths]
+"cli.js:22:12@fced23d0352a528ccd7146b31346162dd20338b9c8d72e361bd7ebd578b85249" = "/data/signups.sqlite"
+
+[volumes.notyetbutsoon-data]
+service = "notyetbutsoon"
+size_mb = 256
+mount_path = "/data"

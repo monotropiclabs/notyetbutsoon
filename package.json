@@ -1,0 +1,17 @@
+{
+  "name": "notyetbutsoon",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "bin": { "nybs": "./nybs.js" },
+  "engines": { "node": ">=24.13.0" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "test:memory": "TEST_TRANSPORT=memory node --test test/*.test.js",
+    "package:ample": "node scripts/package-ample.js",
+    "nybs": "node nybs.js",
+    "projects": "node cli.js projects",
+    "export": "node cli.js export"
+  }
+}
